@@ -13,7 +13,10 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
@@ -27,6 +30,7 @@ import frc.robot.subsystems.CoralSubsystem;
 import frc.robot.subsystems.CoralSubsystem.Setpoint;
 import frc.robot.subsystems.DriveSubsystem;
 import java.util.List;
+import java.util.Optional;
 
 /*
  * This class is where the bulk of the robot should be declared.  Since Command-based is a
@@ -36,128 +40,145 @@ import java.util.List;
  */
 public class RobotContainer {
   // The robot's subsystems
-  private final DriveSubsystem m_robotDrive = new DriveSubsystem();
-  private final CoralSubsystem m_coralSubSystem = new CoralSubsystem();
-  private final AlgaeSubsystem m_algaeSubsystem = new AlgaeSubsystem();
+    private final DriveSubsystem m_robotDrive = new DriveSubsystem();
+    private final CoralSubsystem m_coralSubSystem = new CoralSubsystem();
+    private final AlgaeSubsystem m_algaeSubsystem = new AlgaeSubsystem();
 
-  // The driver's controller
-  CommandXboxController m_driverController =
-      new CommandXboxController(OIConstants.kDriverControllerPort);
-  CommandXboxController m_operatorController =
-      new CommandXboxController(OIConstants.kOperatorControllerPort);
+    // The driver's controller
+    CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerPort);
+    CommandXboxController m_operatorController = new CommandXboxController(OIConstants.kOperatorControllerPort);
+
+    Optional<Alliance> alliance = DriverStation.getAlliance();
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
-  public RobotContainer() {
-    // Configure the button bindings
-    configureButtonBindings();
+    public RobotContainer() {
+        // Configure the button bindings
+        configureButtonBindings();
 
-    // Configure default commands
-    m_robotDrive.setDefaultCommand(
-        // The left stick controls translation of the robot.
-        // Turning is controlled by the X axis of the right stick.
-        new RunCommand(
-            () ->
+        // Configure default commands
+        m_robotDrive.setDefaultCommand(
+            // The left stick controls translation of the robot.
+            // Turning is controlled by the X axis of the right stick.
+            new RunCommand( () ->
                 m_robotDrive.drive(
-                    -MathUtil.applyDeadband(
-                        m_driverController.getLeftY(), OIConstants.kDriveDeadband),
-                    -MathUtil.applyDeadband(
-                        m_driverController.getLeftX(), OIConstants.kDriveDeadband),
-                    -MathUtil.applyDeadband(
-                        m_driverController.getRightX(), OIConstants.kDriveDeadband),
+                    -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband),
+                    -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband),
+                    -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband),
                     true),
             m_robotDrive));
 
-    // Set the ball intake to in/out when not running based on internal state
-    m_algaeSubsystem.setDefaultCommand(m_algaeSubsystem.idleCommand());
-  }
+        // Set the ball intake to in/out when not running based on internal state
+        m_algaeSubsystem.setDefaultCommand(m_algaeSubsystem.idleCommand());
+    }
 
-  /**
-   * Use this method to define your button->command mappings. Buttons can be created by
-   * instantiating a {@link edu.wpi.first.wpilibj.GenericHID} or one of its subclasses ({@link
-   * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then calling passing it to a
-   * {@link JoystickButton}.
-   */
-  private void configureButtonBindings() {
-    // Left Stick Button -> Set swerve to X
-    m_driverController.leftStick().whileTrue(m_robotDrive.setXCommand());
+    /* 
+    *  =========================================================
+    *                   COMMAND BINDINGS
+    *  =========================================================
+    * 
+    */
 
-    // Left Bumper -> Run tube intake
-    m_driverController.leftBumper().whileTrue(m_coralSubSystem.runIntakeCommand());
+    /**
+    * Use this method to define your button->command mappings. Buttons can be created by
+    * instantiating a {@link edu.wpi.first.wpilibj.GenericHID} or one of its subclasses ({@link
+    * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then calling passing it to a
+    * {@link JoystickButton}.
+    */
+    private void configureButtonBindings() {
+        // Left Stick Button -> Set swerve to X
+        m_driverController.leftStick().whileTrue(m_robotDrive.setXCommand());
 
-    // Right Bumper -> Run tube intake in reverse
-    m_driverController.rightBumper().whileTrue(m_coralSubSystem.reverseIntakeCommand());
+        // Left Bumper -> Run tube intake
+        m_driverController.leftBumper().whileTrue(m_coralSubSystem.runIntakeCommand());
 
-    // B Button -> Elevator/Arm to human player position, set ball intake to stow when idle
-    m_driverController
-        .b()
-        .onTrue(
-            m_coralSubSystem
-                .setSetpointCommand(Setpoint.kFeederStation)
-                .alongWith(m_algaeSubsystem.stowCommand()));
+        // Right Bumper -> Run tube intake in reverse
+        m_driverController.rightBumper().whileTrue(m_coralSubSystem.reverseIntakeCommand());
 
-    // A Button -> Elevator/Arm to level 2 position
-    m_driverController.a().onTrue(m_coralSubSystem.setSetpointCommand(Setpoint.kLevel2));
+        // B Button -> Elevator/Arm to human player position, set ball intake to stow when idle
+        m_driverController.b().onTrue(m_coralSubSystem.setSetpointCommand(Setpoint.kFeederStation)
+            .alongWith(m_algaeSubsystem.stowCommand()));
+        
+        // A Button -> Elevator/Arm to level 2 position
+        m_driverController.a().onTrue(m_coralSubSystem.setSetpointCommand(Setpoint.kLevel2));
 
-    // X Button -> Elevator/Arm to level 3 position
-    m_driverController.x().onTrue(m_coralSubSystem.setSetpointCommand(Setpoint.kLevel3));
+        // X Button -> Elevator/Arm to level 3 position
+        m_driverController.x().onTrue(m_coralSubSystem.setSetpointCommand(Setpoint.kLevel3));
 
-    // Y Button -> Elevator/Arm to level 4 position
-    // m_driverController.y().onTrue(m_coralSubSystem.setSetpointCommand(Setpoint.kLevel4));
+        // Y Button -> Elevator/Arm to level 4 position
+        // m_driverController.y().onTrue(m_coralSubSystem.setSetpointCommand(Setpoint.kLevel4));
 
-    // Right Trigger -> Run ball intake, set to leave out when idle
-    m_driverController
-        .rightTrigger(OIConstants.kTriggerButtonThreshold)
-        .whileTrue(m_algaeSubsystem.runIntakeCommand());
+        // Right Trigger -> Run ball intake, set to leave out when idle
+        m_driverController.rightTrigger(OIConstants.kTriggerButtonThreshold)
+            .whileTrue(m_algaeSubsystem.runIntakeCommand());
 
-    // Left Trigger -> Run ball intake in reverse, set to stow when idle
-    m_driverController
-        .leftTrigger(OIConstants.kTriggerButtonThreshold)
-        .whileTrue(m_algaeSubsystem.reverseIntakeCommand());
+        // Left Trigger -> Run ball intake in reverse, set to stow when idle
+        m_driverController.leftTrigger(OIConstants.kTriggerButtonThreshold)
+            .whileTrue(m_algaeSubsystem.reverseIntakeCommand());
 
-    // Start Button -> Zero swerve heading
-    m_driverController.start().onTrue(m_robotDrive.zeroHeadingCommand());
-  }
+        // Start Button -> Zero swerve heading
+        m_driverController.start().onTrue(m_robotDrive.zeroHeadingCommand());
+    }
 
-  public double getSimulationTotalCurrentDraw() {
-  // for each subsystem with simulation
-  return m_coralSubSystem.getSimulationCurrentDraw()
-      + m_algaeSubsystem.getSimulationCurrentDraw();
-  }
+    public double getSimulationTotalCurrentDraw() {
+        // for each subsystem with simulation
+        return m_coralSubSystem.getSimulationCurrentDraw()
+            + m_algaeSubsystem.getSimulationCurrentDraw();
+    }
 
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
    *
    * @return the command to run in autonomous
    */
-  public Command getAutonomousCommand() {
-    // Create config for trajectory
-    TrajectoryConfig config =
-        new TrajectoryConfig(
-                AutoConstants.kMaxSpeedMetersPerSecond,
-                AutoConstants.kMaxAccelerationMetersPerSecondSquared)
+    public Command getAutonomousCommand() {
+        // Create config for trajectory
+        TrajectoryConfig config = new TrajectoryConfig(
+            AutoConstants.kMaxSpeedMetersPerSecond,
+            AutoConstants.kMaxAccelerationMetersPerSecondSquared)
             // Add kinematics to ensure max speed is actually obeyed
             .setKinematics(DriveConstants.kDriveKinematics);
 
-    var thetaController =
-        new ProfiledPIDController(
+        // Create ProfiledPIDController for theta controller
+        var thetaController = new ProfiledPIDController(
             AutoConstants.kPThetaController, 0, 0, AutoConstants.kThetaControllerConstraints);
-    thetaController.enableContinuousInput(-Math.PI, Math.PI);
+            thetaController.enableContinuousInput(-Math.PI, Math.PI);
 
-    // Run selected auto command
-    return middleAutoCommand(config, thetaController);
-  }
+        
+        Command autoCommand = middleAutoCommand(config, thetaController);
+        Command autCommand2 = rightAutoCommand(config, thetaController);
+        
+        // Send selected auto command to Robot.java
+        return autoCommand;
+    }
+    /* 
+     *  =========================================================
+     *                   AUTONOMOUS ROUTINES
+     *  =========================================================
+     *
+     *                            +X
+     *                          ^ 
+     *                          |
+     *                   +Y <---O---> -Y
+     *                          |  
+     *                          v 
+     *                       -X
+     * 
+     *                      Forward = +X
+     *           Left/CCW = +Y        Right/CW = -Y
+     *                     Backward = -X
+     *          
+     *          
+     *  =========================================================
+     * 
+     *  1. Middle Auto Routine
+     *  2. Right Auto Routine
+     * 
+     *  =========================================================
+     */
+    public Command middleAutoCommand(TrajectoryConfig config, ProfiledPIDController thetaController) {
 
-  /* 
-   *  =========================================================
-   *                AUTONOMOUS ROUTINES
-   *  =========================================================
-   * 
-   */
-  public Command middleAutoCommand(TrajectoryConfig config, ProfiledPIDController thetaController) {
-
-    // Drive forward command
-    Trajectory forwardTrajectory =
-        TrajectoryGenerator.generateTrajectory(
+        // Drive forward command
+        Trajectory forwardTrajectory = TrajectoryGenerator.generateTrajectory(
             // Start at the origin facing the +X direction
             new Pose2d(0, 0, new Rotation2d(0)),
             // Interior Waypoint
@@ -166,8 +187,7 @@ public class RobotContainer {
             new Pose2d(2.15, 0, new Rotation2d(Math.PI)),
             config);
 
-    SwerveControllerCommand forwardCommand =
-        new SwerveControllerCommand(
+        SwerveControllerCommand forwardCommand = new SwerveControllerCommand(
             forwardTrajectory,
             m_robotDrive::getPose, // Functional interface to feed supplier
             DriveConstants.kDriveKinematics,
@@ -179,12 +199,11 @@ public class RobotContainer {
             m_robotDrive::setModuleStates,
             m_robotDrive);
 
-    // Lift algae out command (Go to level 3)
-    Command liftAlgaeCommand = m_coralSubSystem.setSetpointCommand(Setpoint.kLevel3);
+        // Lift algae out command (Go to level 3)
+        Command liftAlgaeCommand = m_coralSubSystem.setSetpointCommand(Setpoint.kLevel3);
 
-    // Shimmy right command
-    Trajectory shimmyRightTrajectory =
-        TrajectoryGenerator.generateTrajectory(
+        // Shimmy right command
+        Trajectory shimmyRightTrajectory = TrajectoryGenerator.generateTrajectory(
             // Start at the origin facing the +X direction
             new Pose2d(0, 0, new Rotation2d(0)),
             // Interior Waypoint
@@ -193,8 +212,7 @@ public class RobotContainer {
             new Pose2d(0, 0.17, new Rotation2d(0)),
             config);
 
-    SwerveControllerCommand shimmyRightCommand =
-        new SwerveControllerCommand(
+        SwerveControllerCommand shimmyRightCommand = new SwerveControllerCommand(
             shimmyRightTrajectory,
             m_robotDrive::getPose, // Functional interface to feed supplier
             DriveConstants.kDriveKinematics,
@@ -206,16 +224,75 @@ public class RobotContainer {
             m_robotDrive::setModuleStates,
             m_robotDrive);
 
-    // Score coral command
-    Command outtakeCommand = m_coralSubSystem.reverseIntakeCommand().withTimeout(1);
+        // Score coral command
+        Command scoreCoralCommand = m_coralSubSystem.reverseIntakeCommand().withTimeout(1);
 
-    // Reset odometry to the starting pose of the trajectory.
-    m_robotDrive.resetOdometry(forwardTrajectory.getInitialPose());
+        // Reset odometry to the starting pose of the trajectory.
+        m_robotDrive.resetOdometry(forwardTrajectory.getInitialPose());
 
-    // Go forward 88 inches -> Lift algae out of reef -> Shimmy to the right to be in line with branch -> Score coral -> Stop
-    return forwardCommand.andThen(
-        liftAlgaeCommand.andThen(
-            shimmyRightCommand.andThen(
-                outtakeCommand.andThen(() -> m_robotDrive.drive(0, 0, 0, false)))));
-  }
+        // Go forward 88 inches -> Lift algae out of reef -> Shimmy to the right to be in line with branch -> Score coral -> Stop
+        return forwardCommand.andThen(liftAlgaeCommand.andThen(shimmyRightCommand.andThen(scoreCoralCommand.andThen(
+            () -> m_robotDrive.drive(0, 0, 0, false)))));
+    }
+
+    // Auto Routine for right side of field
+    public Command rightAutoCommand(TrajectoryConfig config, ProfiledPIDController thetaController) {
+        
+        // Go to correct position on reef to score coral
+        Trajectory reefTrajectory = TrajectoryGenerator.generateTrajectory(
+            // Start at the origin facing the +X direction
+            List.of(new Pose2d(0, 0, new Rotation2d(0)), 
+            // Move forward 137.25" and left 21.625"
+            new Pose2d(Units.inchesToMeters(137.25), Units.inchesToMeters(21.625), new Rotation2d(0)),
+            // Move left 100" and turn 135 degrees CCW (3PI/4 radians)
+            new Pose2d(Units.inchesToMeters(137.25), Units.inchesToMeters(121.625), new Rotation2d(3 * Math.PI / 4))),
+            config);
+        
+        SwerveControllerCommand moveToReefCommand = new SwerveControllerCommand(
+            reefTrajectory,
+            m_robotDrive::getPose, // Functional interface to feed supplier
+            DriveConstants.kDriveKinematics,
+    
+            // Position controllers
+            new PIDController(AutoConstants.kPXController, 0, 0),
+            new PIDController(AutoConstants.kPYController, 0, 0),
+            thetaController,
+            m_robotDrive::setModuleStates,
+            m_robotDrive);
+
+        // Lift algae out command (Go to level 3)
+        Command liftAlgaeCommand = m_coralSubSystem.setSetpointCommand(Setpoint.kLevel3);
+
+        // Shimmy right command
+        Trajectory shimmyRightTrajectory = TrajectoryGenerator.generateTrajectory(
+            // Start at the origin facing the +X direction
+            new Pose2d(0, 0, new Rotation2d(0)),
+            // Interior Waypoint
+            List.of(new Translation2d(0, 0.1)),
+            // End 2.15 meters straight ahead of where we started, facing forward
+            new Pose2d(0, 0.17, new Rotation2d(0)),
+            config);
+
+        SwerveControllerCommand shimmyRightCommand = new SwerveControllerCommand(
+            shimmyRightTrajectory,
+            m_robotDrive::getPose, // Functional interface to feed supplier
+            DriveConstants.kDriveKinematics,
+
+            // Position controllers
+            new PIDController(AutoConstants.kPXController, 0, 0),
+            new PIDController(AutoConstants.kPYController, 0, 0),
+            thetaController,
+            m_robotDrive::setModuleStates,
+            m_robotDrive);
+        
+        // Score coral command
+        Command scoreCoralCommand = m_coralSubSystem.reverseIntakeCommand().withTimeout(1);
+
+        // Reset odometry to the starting pose of the trajectory.
+        m_robotDrive.resetOdometry(new Pose2d(0, 0, new Rotation2d(0)));
+
+        // Go to reef -> Lift algae out of reef -> Shimmy to the right to be in line with branch -> Score coral -> Stop
+        return moveToReefCommand.andThen(liftAlgaeCommand.andThen(shimmyRightCommand.andThen(scoreCoralCommand.andThen(
+            () -> m_robotDrive.drive(0, 0, 0, false)))));
+    }
 }
