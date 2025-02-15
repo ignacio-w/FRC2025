@@ -12,6 +12,9 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructArrayPublisher;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
@@ -63,15 +66,34 @@ public class DriveSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     // Update the odometry in the periodic block
-    m_odometry.update(
-        Rotation2d.fromDegrees(-1 * m_gyro.getAngle()),
+    m_odometry.update(Rotation2d.fromDegrees(-1 * m_gyro.getAngle()),
         new SwerveModulePosition[] {
           m_frontLeft.getPosition(),
           m_frontRight.getPosition(),
           m_rearLeft.getPosition(),
           m_rearRight.getPosition()
-        });
-  }
+          });
+
+    // AdvantageScope NetworkTables code (hopefully lol)
+    SwerveModuleState[] states = {m_frontLeft.getState(), m_frontRight.getState(), 
+        m_rearLeft.getState(), m_rearRight.getState()};
+    
+    ChassisSpeeds chassisSpeeds = DriveConstants.kDriveKinematics.toChassisSpeeds(states);
+
+    StructArrayPublisher<SwerveModuleState> statePublisher = NetworkTableInstance.getDefault().
+        getStructArrayTopic("MyStates", SwerveModuleState.struct).publish();
+
+    StructPublisher<ChassisSpeeds> chassisPublisher = NetworkTableInstance.getDefault().
+        getStructTopic("MyChassisSpeeds", ChassisSpeeds.struct).publish();
+
+    StructPublisher<Pose2d> posePublisher = NetworkTableInstance.getDefault().
+        getStructTopic("MyPose", Pose2d.struct).publish();
+    
+    statePublisher.set(states);
+    chassisPublisher.set(chassisSpeeds);
+    posePublisher.set(getPose());
+
+    }
 
   /**
    * Returns the currently-estimated pose of the robot.
