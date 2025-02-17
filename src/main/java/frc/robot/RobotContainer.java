@@ -147,6 +147,7 @@ public class RobotContainer {
         Command autoCommand1 = leaveAutoCommand(config, thetaController);
         Command autoCommand2 = middleAutoCommand(config, thetaController);
         Command autoCommand3 = rightAutoCommand(config, thetaController);
+        Command autoCommand4 = leftAutoCommand(config, thetaController);
         
         // Send selected auto command to Robot.java
         return autoCommand1;
