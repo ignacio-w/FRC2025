@@ -144,11 +144,12 @@ public class RobotContainer {
             thetaController.enableContinuousInput(-Math.PI, Math.PI);
 
         
-        Command autoCommand = middleAutoCommand(config, thetaController);
-        Command autCommand2 = rightAutoCommand(config, thetaController);
+        Command autoCommand1 = leaveAutoCommand(config, thetaController);
+        Command autoCommand2 = middleAutoCommand(config, thetaController);
+        Command autoCommand3 = rightAutoCommand(config, thetaController);
         
         // Send selected auto command to Robot.java
-        return autoCommand;
+        return autoCommand1;
     }
     /* 
      *  =========================================================
@@ -170,11 +171,43 @@ public class RobotContainer {
      *          
      *  =========================================================
      * 
-     *  1. Middle Auto Routine
-     *  2. Right Auto Routine
+     *  1. Leave Auto Routine (3 (Leave) = 3 pts)
+     *  2. Middle Auto Routine (6 (Coral) + 3 (Leave) = 9 pts)
+     *  3. Right Auto Routine (6 (Coral) + 3 (Leave) = 9 pts)
+     *  4. Left Auto Routine (6 (Coral) + 3 (Leave) = 9 pts)
      * 
      *  =========================================================
      */
+    
+    // Auto Routine for soley leave points
+    public Command leaveAutoCommand(TrajectoryConfig config, ProfiledPIDController thetaController) {
+        
+        // Drive forward command
+        Trajectory forwardTrajectory = TrajectoryGenerator.generateTrajectory(
+            // Start at the origin facing the +X direction
+            new Pose2d(0, 0, new Rotation2d(0)),
+            // Interior Waypoint
+            List.of(new Translation2d(1, 0)),
+            // End 2 meters straight ahead of where we started, facing forward
+            new Pose2d(2, 0, new Rotation2d(0)),
+            config);
+
+        SwerveControllerCommand forwardCommand = new SwerveControllerCommand(
+            forwardTrajectory,
+            m_robotDrive::getPose, // Functional interface to feed supplier
+            DriveConstants.kDriveKinematics,
+
+            // Position controllers
+            new PIDController(AutoConstants.kPXController, 0, 0),
+            new PIDController(AutoConstants.kPYController, 0, 0),
+            thetaController,
+            m_robotDrive::setModuleStates,
+            m_robotDrive);
+
+        return forwardCommand.andThen(() -> m_robotDrive.drive(0, 0, 0, false));
+    }
+    
+    // Auto Routine for middle of field
     public Command middleAutoCommand(TrajectoryConfig config, ProfiledPIDController thetaController) {
 
         // Drive forward command
@@ -207,9 +240,9 @@ public class RobotContainer {
             // Start at the origin facing the +X direction
             new Pose2d(0, 0, new Rotation2d(0)),
             // Interior Waypoint
-            List.of(new Translation2d(0, 0.1)),
-            // End 2.15 meters straight ahead of where we started, facing forward
-            new Pose2d(0, 0.17, new Rotation2d(0)),
+            List.of(new Translation2d(0, -0.1)),
+            // End 0.17 meters right of where we started, facing forward
+            new Pose2d(0, -0.17, new Rotation2d(0)),
             config);
 
         SwerveControllerCommand shimmyRightCommand = new SwerveControllerCommand(
@@ -268,9 +301,9 @@ public class RobotContainer {
             // Start at the origin facing the +X direction
             new Pose2d(0, 0, new Rotation2d(0)),
             // Interior Waypoint
-            List.of(new Translation2d(0, 0.1)),
-            // End 2.15 meters straight ahead of where we started, facing forward
-            new Pose2d(0, 0.17, new Rotation2d(0)),
+            List.of(new Translation2d(0, -0.1)),
+            // End 0.17 meters right of where we started, facing forward
+            new Pose2d(0, -0.17, new Rotation2d(0)),
             config);
 
         SwerveControllerCommand shimmyRightCommand = new SwerveControllerCommand(
@@ -295,4 +328,65 @@ public class RobotContainer {
         return moveToReefCommand.andThen(liftAlgaeCommand.andThen(shimmyRightCommand.andThen(scoreCoralCommand.andThen(
             () -> m_robotDrive.drive(0, 0, 0, false)))));
     }
+
+    // Auto Routine for left side of field
+    public Command leftAutoCommand(TrajectoryConfig config, ProfiledPIDController thetaController) {
+        
+        // Go to correct position on reef to score coral
+        Trajectory reefTrajectory = TrajectoryGenerator.generateTrajectory(
+            // Start at the origin facing the +X direction
+            List.of(new Pose2d(0, 0, new Rotation2d(0)), 
+            // Move forward 137.25" and right 21.625"
+            new Pose2d(Units.inchesToMeters(137.25), -Units.inchesToMeters(21.625), new Rotation2d(0)),
+            // Move right 100" and turn 135 degrees CW (-3PI/4 radians)
+            new Pose2d(Units.inchesToMeters(137.25), -Units.inchesToMeters(121.625), new Rotation2d(-3 * Math.PI / 4))),
+            config);
+            
+        SwerveControllerCommand moveToReefCommand = new SwerveControllerCommand(
+            reefTrajectory,
+            m_robotDrive::getPose, // Functional interface to feed supplier
+            DriveConstants.kDriveKinematics,
+        
+            // Position controllers
+            new PIDController(AutoConstants.kPXController, 0, 0),
+            new PIDController(AutoConstants.kPYController, 0, 0),
+            thetaController,
+            m_robotDrive::setModuleStates,
+            m_robotDrive);
+    
+        // Lift algae out command (Go to level 3)
+        Command liftAlgaeCommand = m_coralSubSystem.setSetpointCommand(Setpoint.kLevel3);
+    
+        // Shimmy left command
+        Trajectory shimmyLeftTrajectory = TrajectoryGenerator.generateTrajectory(
+            // Start at the origin facing the +X direction
+            new Pose2d(0, 0, new Rotation2d(0)),
+            // Interior Waypoint
+            List.of(new Translation2d(0, 0.1)),
+            // End 0.17 meters left of where we started, facing forward
+            new Pose2d(0, 0.17, new Rotation2d(0)),
+            config);
+    
+        SwerveControllerCommand shimmyLeftCommand = new SwerveControllerCommand(
+            shimmyLeftTrajectory,
+            m_robotDrive::getPose, // Functional interface to feed supplier
+            DriveConstants.kDriveKinematics,
+    
+            // Position controllers
+            new PIDController(AutoConstants.kPXController, 0, 0),
+            new PIDController(AutoConstants.kPYController, 0, 0),
+            thetaController,
+            m_robotDrive::setModuleStates,
+            m_robotDrive);
+            
+        // Score coral command
+        Command scoreCoralCommand = m_coralSubSystem.reverseIntakeCommand().withTimeout(1);
+    
+        // Reset odometry to the starting pose of the trajectory.
+        m_robotDrive.resetOdometry(new Pose2d(0, 0, new Rotation2d(0)));
+    
+        // Go to reef -> Lift algae out of reef -> Shimmy to left right to be in line with branch -> Score coral -> Stop
+        return moveToReefCommand.andThen(liftAlgaeCommand.andThen(shimmyLeftCommand.andThen(scoreCoralCommand.andThen(
+            () -> m_robotDrive.drive(0, 0, 0, false)))));
+        }
 }
